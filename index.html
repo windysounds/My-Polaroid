@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>My Polaroid - Final Version</title>
+    <title>My Polaroid - Final Mobile Version</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&display=swap');
@@ -165,7 +165,7 @@
             
             let isDragging = false, startX, scrollLeft, mouseDownPos = {x: 0, y: 0};
 
-            // IndexedDB Helper Functions
+            // IndexedDB Helper Functions (원본과 동일)
             function initDB() {
                 return new Promise((resolve, reject) => {
                     const request = indexedDB.open('PolaroidDB', 1);
@@ -220,7 +220,7 @@
                 });
             }
 
-            // Main Application Logic
+            // Main Application Logic (원본과 동일)
             function handleFileUpload(e) { 
                 const file = e.target.files[0]; 
                 if (file) { 
@@ -444,28 +444,56 @@
                 ctx.putImageData(imageData, x, y);
             }
 
-            // 🛠️ 개선 2: Canvas 필터 처리를 위한 새로운 함수
+            // 🛠️ 수정 2: Canvas 필터 처리를 위한 새로운 함수 (원본 색감 재현)
             function applyCanvasFilter(imageData, filterType) {
                 const data = imageData.data;
+                const clamp = (value) => Math.max(0, Math.min(255, value));
+
                 if (filterType === 'film') {
                     for (let i = 0; i < data.length; i += 4) {
                         let r = data[i], g = data[i+1], b = data[i+2];
-                        const tr = Math.min(255, 0.393 * r + 0.769 * g + 0.189 * b);
-                        const tg = Math.min(255, 0.349 * r + 0.686 * g + 0.168 * b);
-                        const tb = Math.min(255, 0.272 * r + 0.534 * g + 0.131 * b);
-                        data[i] = tr * 1.1; data[i+1] = tg; data[i+2] = tb * 0.9;
+
+                        // 1. Brightness(1.05)
+                        r *= 1.05; g *= 1.05; b *= 1.05;
+
+                        // 2. Sepia(0.35)
+                        const sepiaR = r * 0.7765 + g * 0.5155 + b * 0.108;
+                        const sepiaG = r * 0.3490 + g * 0.8260 + b * 0.168;
+                        const sepiaB = r * 0.2720 + g * 0.5340 + b * 0.444;
+                        r = r * 0.65 + sepiaR * 0.35;
+                        g = g * 0.65 + sepiaG * 0.35;
+                        b = b * 0.65 + sepiaB * 0.35;
+                        
+                        // 3. Saturate(0.65)
+                        const gray = r * 0.299 + g * 0.587 + b * 0.114;
+                        r = gray * 0.35 + r * 0.65;
+                        g = gray * 0.35 + g * 0.65;
+                        b = gray * 0.35 + b * 0.65;
+
+                        // 4. Contrast(1.35)
+                        r = (r - 128) * 1.35 + 128;
+                        g = (g - 128) * 1.35 + 128;
+                        b = (b - 128) * 1.35 + 128;
+                        
+                        data[i] = clamp(r);
+                        data[i+1] = clamp(g);
+                        data[i+2] = clamp(b);
                     }
                 } else if (filterType === 'retro') {
                     for (let i = 0; i < data.length; i += 4) {
+                        // 1. Grayscale(1)
                         const gray = data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114;
-                        const contrastedGray = 1.2 * (gray - 128) + 128;
-                        data[i] = data[i+1] = data[i+2] = contrastedGray;
+                        // 2. Brightness(0.85)
+                        const brightenedGray = gray * 0.85;
+                        // 3. Contrast(1.4)
+                        const finalGray = (brightenedGray - 128) * 1.4 + 128;
+                        data[i] = data[i+1] = data[i+2] = clamp(finalGray);
                     }
                 }
                 return imageData;
             }
             
-            // 🛠️ 개선 2: downloadPolaroid 함수 수정
+            // 🛠️ 수정 2: downloadPolaroid 함수 수정
             function downloadPolaroid() {
                 if (!currentExportPhoto) return;
                 const img = new Image();
@@ -491,17 +519,24 @@
                     }
                     ctx.save();
                     ctx.beginPath(); ctx.rect(padding, padding, photoWidth, photoHeight); ctx.clip();
+                    
+                    // 원본 이미지를 먼저 그림
                     ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
                     
+                    // Safari 호환성을 위해 ctx.filter 대신 수동 필터 적용
                     if (currentFilter !== 'none') {
                         const imageData = ctx.getImageData(padding, padding, photoWidth, photoHeight);
                         const filteredData = applyCanvasFilter(imageData, currentFilter);
                         ctx.putImageData(filteredData, padding, padding);
                     }
                     
-                    if (currentFilter === 'film' || currentFilter === 'retro') {
-                        addNoise(ctx, padding, padding, photoWidth, photoHeight, 20);
+                    // 노이즈 추가
+                    if (currentFilter === 'film') {
+                        addNoise(ctx, padding, padding, photoWidth, photoHeight, 30);
+                    } else if (currentFilter === 'retro') {
+                        addNoise(ctx, padding, padding, photoWidth, photoHeight, 25);
                     }
+                    
                     ctx.restore();
                     if (currentExportPhoto.text) {
                         const textY = frameHeight - 35 * scale;
@@ -538,7 +573,7 @@
             galleryContainer.addEventListener('mouseleave', endDrag);
             galleryContainer.addEventListener('mousemove', onDrag);
 
-            // 🛠️ 개선 3: 모바일 터치 이벤트 추가
+            // 🛠️ 수정 3: 모바일 터치 이벤트 추가
             galleryContainer.addEventListener('touchstart', (e) => {
                 if (isDragging) return;
                 const touch = e.touches[0];
