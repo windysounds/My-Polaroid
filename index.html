@@ -2,18 +2,56 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Polaroid Photo Generator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>My Polaroid - Final Version</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&display=swap');
         
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Arial', sans-serif; background: linear-gradient(135deg, #2c1810 0%, #1a0f0a 100%); min-height: 100vh; overflow-x: hidden; color: #f5f5f5; }
+        body { 
+            font-family: 'Arial', sans-serif; 
+            background: linear-gradient(135deg, #2c1810 0%, #1a0f0a 100%); 
+            min-height: 100vh; 
+            overflow-x: hidden; 
+            color: #f5f5f5; 
+            -webkit-user-select: none; /* 드래그 시 텍스트 선택 방지 */
+            user-select: none;
+        }
         
-        /* (중략) ... 다른 CSS 코드는 이전과 동일 ... */
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .upload-section { display: flex; flex-direction: column; align-items: center; height: 70vh; justify-content: center; transition: all 0.5s ease; }
+        .polaroid-frame { width: 280px; height: 350px; background: #fefefe; border-radius: 5px; box-shadow: 0 15px 35px rgba(0,0,0,0.6); padding: 18px 18px 45px 18px; margin-bottom: 20px; position: relative; transform: rotate(-2deg); transition: all 0.3s ease; }
+        .polaroid-frame:hover { transform: rotate(0deg) scale(1.02); }
+        .photo-area { width: 100%; height: 245px; background: #f8f8f8; border: 2px dashed #ccc; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s ease; position: relative; overflow: hidden; }
+        .photo-area:hover { border-color: #d4a574; background: #faf8f5; }
+        .upload-placeholder { text-align: center; }
+        .upload-icon { font-size: 48px; color: #ccc; margin-bottom: 10px; }
+        .upload-text { color: #666; font-size: 14px; }
+        .uploaded-image { width: 100%; height: 100%; object-fit: cover; border-radius: 3px; }
+        .text-area { position: absolute; bottom: 35px; left: 18px; right: 18px; height: 22px; }
+        .photo-text { width: 100%; height: 100%; border: none; outline: none; background: transparent; font-family: 'Caveat', cursive; font-size: 16px; font-weight: 600; text-align: center; color: #333; }
+        .photo-text::placeholder { color: #999; font-weight: 400; }
+        .shutter-button { width: 70px; height: 70px; border-radius: 50%; background: linear-gradient(45deg, #c0c0c0, #e8e8e8); border: 6px solid #999; cursor: pointer; position: relative; transition: all 0.2s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.6); }
+        .shutter-button:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(0,0,0,0.8); background: linear-gradient(45deg, #d0d0d0, #f5f5f5); }
+        .shutter-button:active { transform: scale(0.95); }
+        .shutter-button::before { content: ''; position: absolute; top: 50%; left: 50%; width: 25px; height: 25px; background: #a8a8a8; border-radius: 50%; transform: translate(-50%, -50%); border: 2px solid #888; }
+        
+        .gallery-section { margin-top: 30vh; padding: 60px 0; background: radial-gradient(circle at 50% 10%, rgba(255,255,255,0.1) 0%, transparent 50%), linear-gradient(135deg, #1a0f0a 0%, #2c1810 30%, #3d2318 60%, #2c1810 100%); min-height: 450px; position: relative; overflow: hidden; }
+        .clothesline { position: relative; height: 330px; margin: 0 auto; max-width: 90%; padding: 40px 0; }
+        .clothesline-wire { position: absolute; top: 30px; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, #8b6914, #b8941a, #8b6914); box-shadow: 0 2px 8px rgba(0,0,0,0.6); }
+        .gallery-container { position: relative; height: 100%; overflow: hidden; cursor: grab; }
+        .gallery-container:active { cursor: grabbing; }
 
-        /* 🛠️ 해결책 1: CSS 필터에 WebKit 접두사 추가하여 Safari 호환성 확보 */
+        .saved-polaroids { display: flex; gap: 35px; padding: 50px 20px 20px 20px; height: 100%; position: absolute; left: 0; will-change: transform; }
+        .saved-polaroid { flex-shrink: 0; width: 140px; height: 175px; background: #fefefe; border-radius: 3px; box-shadow: 0 8px 25px rgba(0,0,0,0.6); padding: 10px 10px 30px 10px; cursor: pointer; transition: transform 0.3s ease, box-shadow 0.3s ease; position: relative; transform: rotate(var(--rotation)); }
+        .saved-polaroid:hover { transform: rotate(0deg) scale(1.08); box-shadow: 0 12px 35px rgba(0,0,0,0.8); z-index: 10; }
+        .saved-polaroid::before { content: ''; position: absolute; top: -12px; left: 50%; transform: translateX(-50%); width: 18px; height: 12px; background: linear-gradient(45deg, #d4a574, #b8941a); border-radius: 3px 3px 0 0; box-shadow: 0 2px 6px rgba(0,0,0,0.6); }
+        .saved-polaroid::after { content: ''; position: absolute; top: -8px; left: 50%; transform: translateX(-50%); width: 12px; height: 4px; background: linear-gradient(45deg, #8b6914, #a0751a); border-radius: 2px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.3); }
+        .saved-image { width: 100%; height: 120px; border-radius: 2px; background-size: cover; background-position: center; background-repeat: no-repeat; }
+        .saved-text { position: absolute; bottom: 15px; left: 10px; right: 10px; text-align: center; font-family: 'Caveat', cursive; font-size: 12px; font-weight: 600; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transform: rotate(-1deg); }
+
+        /* 🛠️ 수정 1: Safari 호환성을 위한 WebKit 접두사 추가 */
         .filter-film { 
             -webkit-filter: contrast(1.35) brightness(1.05) saturate(0.65) sepia(0.35) hue-rotate(15deg) blur(0.3px);
             filter: contrast(1.35) brightness(1.05) saturate(0.65) sepia(0.35) hue-rotate(15deg) blur(0.3px);
@@ -25,8 +63,7 @@
             filter: grayscale(1) contrast(1.4) brightness(0.85) saturate(0); 
         }
         
-        /* (중략) ... 나머지 CSS 코드는 이전과 동일 ... */
-        .filter-none { filter: none; }
+        .filter-none { -webkit-filter: none; filter: none; }
         .flash-effect { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, rgba(255,255,255,0.9) 0%, rgba(255,240,200,0.6) 100%); opacity: 0; pointer-events: none; z-index: 9999; }
         .export-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; justify-content: center; align-items: center; cursor: pointer; }
         .export-content { position: relative; background: linear-gradient(135deg, #2c1810, #1a0f0a); padding: 40px; border-radius: 15px; text-align: center; max-width: 450px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.8); border: 1px solid rgba(212, 165, 116, 0.2); cursor: default; }
@@ -40,10 +77,23 @@
         .filter-btn.active { background: #d4a574; color: #1a0f0a; }
         .export-buttons { margin-top: 25px; display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap; }
         .btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 1px; }
+        .btn-primary { background: linear-gradient(45deg, #c0c0c0, #e8e8e8); color: #333; border: 1px solid #999; }
+        .btn-secondary { background: linear-gradient(45deg, #3a2015, #2c1810); color: #d4a574; border: 1px solid #d4a574; }
+        
+        #deleteIconBtn { position: absolute; bottom: 20px; right: 20px; background: transparent; border: none; font-size: 24px; color: #d4a574; cursor: pointer; opacity: 0.7; transition: all 0.3s ease; padding: 5px; }
+        #deleteIconBtn:hover { opacity: 1; transform: scale(1.2); }
+
+        .file-input { display: none; }
+        .animate-fall { animation: fall 1.2s ease-out forwards; }
+        @keyframes fall { from { transform: translateY(0) rotate(-2deg); opacity: 1; } to { transform: translateY(100vh) rotate(-15deg); opacity: 0; } }
+        .animate-flash { animation: flash 0.4s ease-out; }
+        @keyframes flash { 0%, 100% { opacity: 0; } 50% { opacity: 0.8; } }
+        
+        .no-photos { text-align: center; color: #d4a574; font-family: 'Caveat', cursive; font-size: 24px; font-weight: 600; opacity: 0.7; position: absolute; width: 100%; top: 50%; transform: translateY(-50%); }
+        .hidden-canvas { position: absolute; top: -9999px; left: -9999px; pointer-events: none; visibility: hidden; }
     </style>
 </head>
 <body>
-    <!-- (HTML 구조는 변경 없음) -->
     <div class="flash-effect"></div>
     <div class="container">
         <div class="upload-section" id="uploadSection">
@@ -94,47 +144,328 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // (상단 변수 선언 및 IndexedDB 함수는 변경 없음)
             let db;
             let savedPhotos = []; 
             let currentImage = null, currentExportPhoto = null, currentFilter = 'film';
-            const photoArea = document.getElementById('photoArea'), fileInput = document.getElementById('fileInput'), shutterButton = document.getElementById('shutterButton'), photoText = document.getElementById('photoText'), polaroidFrame = document.getElementById('polaroidFrame'), savedPolaroids = document.getElementById('savedPolaroids'), flashEffect = document.querySelector('.flash-effect'), exportModal = document.getElementById('exportModal'), exportImage = document.getElementById('exportImage'), exportText = document.getElementById('exportText'), downloadBtn = document.getElementById('downloadBtn'), cancelBtn = document.getElementById('cancelBtn'), deleteIconBtn = document.getElementById('deleteIconBtn'), galleryContainer = document.getElementById('galleryContainer');
+            
+            const photoArea = document.getElementById('photoArea'), 
+                  fileInput = document.getElementById('fileInput'), 
+                  shutterButton = document.getElementById('shutterButton'), 
+                  photoText = document.getElementById('photoText'), 
+                  polaroidFrame = document.getElementById('polaroidFrame'), 
+                  savedPolaroids = document.getElementById('savedPolaroids'), 
+                  flashEffect = document.querySelector('.flash-effect'), 
+                  exportModal = document.getElementById('exportModal'), 
+                  exportImage = document.getElementById('exportImage'), 
+                  exportText = document.getElementById('exportText'), 
+                  downloadBtn = document.getElementById('downloadBtn'), 
+                  cancelBtn = document.getElementById('cancelBtn'),
+                  deleteIconBtn = document.getElementById('deleteIconBtn'),
+                  galleryContainer = document.getElementById('galleryContainer');
+            
             let isDragging = false, startX, scrollLeft, mouseDownPos = {x: 0, y: 0};
+
+            // IndexedDB Helper Functions
+            function initDB() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open('PolaroidDB', 1);
+                    request.onupgradeneeded = (event) => {
+                        const dbInstance = event.target.result;
+                        if (!dbInstance.objectStoreNames.contains('photos')) {
+                            dbInstance.createObjectStore('photos', { keyPath: 'id' });
+                        }
+                    };
+                    request.onsuccess = (event) => { db = event.target.result; resolve(); };
+                    request.onerror = (event) => reject('Database error: ' + event.target.error);
+                });
+            }
+
+            function savePhotoInDB(photo) {
+                return new Promise((resolve, reject) => {
+                    if (!db) return reject("DB not initialized");
+                    const transaction = db.transaction(['photos'], 'readwrite');
+                    const request = transaction.objectStore('photos').add(photo);
+                    request.onsuccess = () => resolve();
+                    request.onerror = (event) => reject('Error saving photo: ' + event.target.error);
+                });
+            }
+
+            function getAllPhotosFromDB() {
+                return new Promise((resolve, reject) => {
+                    if (!db) return reject("DB not initialized");
+                    const store = db.transaction(['photos'], 'readonly').objectStore('photos');
+                    const getAllRequest = store.getAll();
+                    getAllRequest.onsuccess = () => resolve(getAllRequest.result.sort((a, b) => b.id - a.id));
+                    getAllRequest.onerror = (event) => reject('Error fetching photos: ' + event.target.error);
+                });
+            }
             
-            // (IndexedDB, 사운드 등 다른 함수들도 변경 없음)
+            function updatePhotoInDB(photo) {
+                 return new Promise((resolve, reject) => {
+                    if (!db) return reject("DB not initialized");
+                    const transaction = db.transaction(['photos'], 'readwrite');
+                    const request = transaction.objectStore('photos').put(photo);
+                    request.onsuccess = () => resolve();
+                    request.onerror = (event) => reject('Error updating photo: ' + event.target.error);
+                });
+            }
+
+            function deletePhotoFromDB(photoId) {
+                return new Promise((resolve, reject) => {
+                    if (!db) return reject("DB not initialized");
+                    const transaction = db.transaction(['photos'], 'readwrite');
+                    const request = transaction.objectStore('photos').delete(photoId);
+                    request.onsuccess = () => resolve();
+                    request.onerror = (event) => reject('Error deleting photo: ' + event.target.error);
+                });
+            }
+
+            // Main Application Logic
+            function handleFileUpload(e) { 
+                const file = e.target.files[0]; 
+                if (file) { 
+                    const reader = new FileReader(); 
+                    reader.onload = (event) => { 
+                        currentImage = event.target.result; 
+                        photoArea.innerHTML = `<img src="${currentImage}" class="uploaded-image filter-film">`; 
+                    }; 
+                    reader.readAsDataURL(file); 
+                } 
+            }
             
-            // 🛠️ 해결책 2: Canvas 필터 처리를 위한 새로운 함수
+            async function handleDeleteClick() {
+                if (!currentExportPhoto) return;
+                if (confirm('Are you sure you want to delete this photo? This cannot be undone.')) {
+                    try {
+                        await deletePhotoFromDB(currentExportPhoto.id);
+                        savedPhotos = savedPhotos.filter(p => p.id !== currentExportPhoto.id);
+                        updateGallery();
+                        closeExportModal();
+                    } catch(error) {
+                        console.error('Failed to delete photo:', error);
+                        alert('Could not delete the photo. Please try again.');
+                    }
+                }
+            }
+            
+            async function handleShutterClick() { 
+                if (!currentImage) { 
+                    alert('Please upload a photo first!'); 
+                    return; 
+                }
+                const textToSave = photoText.value.trim();
+                playShutterSound();
+                flashEffect.classList.add('animate-flash'); 
+                
+                const newPhoto = { id: Date.now(), image: currentImage, text: textToSave, filter: 'film' };
+
+                try {
+                    await savePhotoInDB(newPhoto);
+                    savedPhotos.unshift(newPhoto);
+                    setTimeout(() => { 
+                        polaroidFrame.classList.add('animate-fall'); 
+                        setTimeout(() => { 
+                            updateGallery(true);
+                            resetUploadArea(); 
+                            polaroidFrame.classList.remove('animate-fall'); 
+                            flashEffect.classList.remove('animate-flash'); 
+                        }, 1200); 
+                    }, 400);
+                } catch(error) {
+                    console.error('Failed to save photo:', error);
+                    alert('Could not save photo to the database.');
+                    flashEffect.classList.remove('animate-flash');
+                }
+            }
+            
+            function playShutterSound() {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                if (!audioContext) return;
+                const now = audioContext.currentTime;
+                const masterGain = audioContext.createGain();
+                masterGain.gain.value = 0.15;
+                const compressor = audioContext.createDynamicsCompressor();
+                compressor.threshold.setValueAtTime(-15, now);
+                compressor.knee.setValueAtTime(20, now);
+                compressor.ratio.setValueAtTime(3, now);
+                compressor.attack.setValueAtTime(0.01, now);
+                compressor.release.setValueAtTime(0.1, now);
+                masterGain.connect(compressor);
+                compressor.connect(audioContext.destination);
+                const clickStartTime = now + 0.001;
+                const clackStartTime = clickStartTime + 0.01;
+                createClickSound(clickStartTime);
+                createClackSound(clackStartTime);
+                function createClickSound(startTime) {
+                    const noise = audioContext.createBufferSource();
+                    const noiseBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.02, audioContext.sampleRate);
+                    const data = noiseBuffer.getChannelData(0);
+                    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+                    noise.buffer = noiseBuffer;
+                    const noiseGain = audioContext.createGain();
+                    const noiseFilter = audioContext.createBiquadFilter();
+                    noiseFilter.type = 'bandpass';
+                    noiseFilter.frequency.value = 1200 + (Math.random() * 100 - 50);
+                    noiseFilter.Q.value = 15;
+                    noiseGain.gain.setValueAtTime(0, startTime);
+                    noiseGain.gain.linearRampToValueAtTime(0.8, startTime + 0.005);
+                    noiseGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.02);
+                    noise.connect(noiseFilter).connect(noiseGain).connect(masterGain);
+                    noise.start(startTime);
+                    noise.stop(startTime + 0.02);
+                }
+                function createClackSound(startTime) {
+                    const osc = audioContext.createOscillator();
+                    osc.type = 'sine';
+                    const oscGain = audioContext.createGain();
+                    const randomFreq = 350 + (Math.random() * 50 - 25);
+                    osc.frequency.setValueAtTime(randomFreq, startTime);
+                    osc.frequency.exponentialRampToValueAtTime(randomFreq * 0.8, startTime + 0.05);
+                    const gainVal = 0.9 + (Math.random() * 0.2 - 0.1);
+                    oscGain.gain.setValueAtTime(0, startTime);
+                    oscGain.gain.linearRampToValueAtTime(gainVal, startTime + 0.01);
+                    oscGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.1);
+                    osc.connect(oscGain).connect(masterGain);
+                    osc.start(startTime);
+                    osc.stop(startTime + 0.1);
+                }
+            }
+            
+            function resetUploadArea() { 
+                currentImage = null; 
+                photoText.value = ''; 
+                photoArea.innerHTML = `<div class="upload-placeholder"><div class="upload-icon">+</div><div class="upload-text">Click to upload photo</div></div>`; 
+                fileInput.value = ''; 
+            }
+            
+            function updateGallery(isNewPhotoAdded = false) {
+                const galleryHTML = savedPhotos.map((photo, index) => { 
+                    const rotations = ['-8deg', '5deg', '-3deg', '7deg', '-5deg', '4deg', '-6deg', '3deg']; 
+                    return `<div class="saved-polaroid" style="--rotation: ${rotations[index % rotations.length]}" data-id="${photo.id}">
+                        <div class="saved-image filter-${photo.filter}" style="background-image: url('${photo.image}')"></div>
+                        <div class="saved-text">${photo.text || ' '}</div>
+                    </div>`; 
+                }).join('');
+                savedPolaroids.innerHTML = (savedPhotos.length === 0) ? '<div class="no-photos">No photos yet</div>' : galleryHTML;
+                if (isNewPhotoAdded) { savedPolaroids.style.transform = 'translateX(0px)'; }
+            }
+            
+            function startDrag(e) { 
+                isDragging = true; 
+                galleryContainer.style.cursor = 'grabbing'; 
+                startX = e.pageX - galleryContainer.offsetLeft; 
+                const style = window.getComputedStyle(savedPolaroids); 
+                const matrix = new DOMMatrixReadOnly(style.transform); 
+                scrollLeft = matrix.m41; 
+                mouseDownPos.x = e.clientX; 
+                mouseDownPos.y = e.clientY; 
+            }
+            
+            function endDrag(e) { 
+                if (!isDragging) return; 
+                isDragging = false; 
+                galleryContainer.style.cursor = 'grab'; 
+                const mouseUpPos = { x: e.clientX, y: e.clientY }; 
+                const movedDistance = Math.sqrt(Math.pow(mouseUpPos.x - mouseDownPos.x, 2) + Math.pow(mouseUpPos.y - mouseDownPos.y, 2)); 
+                if (movedDistance < 10 && e.target.closest('.saved-polaroid')) { 
+                    const polaroid = e.target.closest('.saved-polaroid'); 
+                    if (polaroid) {
+                        const photoId = parseInt(polaroid.dataset.id); 
+                        openExportModal(photoId);
+                    }
+                } 
+            }
+            
+            function onDrag(e) { 
+                if (!isDragging) return; 
+                e.preventDefault(); 
+                const x = e.pageX - galleryContainer.offsetLeft; 
+                const walk = x - startX; 
+                let newLeft = scrollLeft + walk; 
+                const containerWidth = galleryContainer.offsetWidth; 
+                const contentWidth = savedPolaroids.scrollWidth; 
+                const maxLeft = 20; 
+                const minLeft = containerWidth - contentWidth - 20; 
+                if (contentWidth > containerWidth) { newLeft = Math.max(minLeft, Math.min(maxLeft, newLeft)); } else { newLeft = 0; } 
+                savedPolaroids.style.transform = `translateX(${newLeft}px)`; 
+            }
+            
+            function openExportModal(photoId) { 
+                currentExportPhoto = savedPhotos.find(p => p.id === photoId); 
+                if (currentExportPhoto) { 
+                    exportImage.src = currentExportPhoto.image; 
+                    exportText.textContent = currentExportPhoto.text; 
+                    currentFilter = currentExportPhoto.filter; 
+                    updateFilterButtons(); 
+                    updateExportImage(); 
+                    exportModal.style.display = 'flex'; 
+                } 
+            }
+            
+            function closeExportModal() { 
+                exportModal.style.display = 'none'; 
+                currentExportPhoto = null; 
+            }
+            
+            async function handleFilterChange(e) { 
+                currentFilter = e.target.dataset.filter; 
+                updateFilterButtons(); 
+                updateExportImage(); 
+                if (currentExportPhoto) { 
+                    currentExportPhoto.filter = currentFilter;
+                    try {
+                        await updatePhotoInDB(currentExportPhoto);
+                        const photoIndex = savedPhotos.findIndex(p => p.id === currentExportPhoto.id); 
+                        if (photoIndex !== -1) { savedPhotos[photoIndex].filter = currentFilter; updateGallery(); }
+                    } catch(error) {
+                        console.error('Failed to update filter:', error);
+                        alert('Could not save the filter change.');
+                    }
+                } 
+            }
+            
+            function updateFilterButtons() { 
+                document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.filter === currentFilter)); 
+            }
+            
+            function updateExportImage() { 
+                exportImage.className = `export-image filter-${currentFilter}`; 
+            }
+            
+            function addNoise(ctx, x, y, width, height, level) {
+                const imageData = ctx.getImageData(x, y, width, height);
+                const data = imageData.data;
+                for (let i = 0; i < data.length; i += 4) {
+                    const noise = (Math.random() - 0.5) * level;
+                    data[i] = Math.max(0, Math.min(255, data[i] + noise));
+                    data[i+1] = Math.max(0, Math.min(255, data[i+1] + noise));
+                    data[i+2] = Math.max(0, Math.min(255, data[i+2] + noise));
+                }
+                ctx.putImageData(imageData, x, y);
+            }
+
+            // 🛠️ 개선 2: Canvas 필터 처리를 위한 새로운 함수
             function applyCanvasFilter(imageData, filterType) {
                 const data = imageData.data;
-                
                 if (filterType === 'film') {
-                    // 필름 효과를 픽셀 단위로 직접 처리
                     for (let i = 0; i < data.length; i += 4) {
                         let r = data[i], g = data[i+1], b = data[i+2];
-                        
-                        // 세피아 톤 적용
                         const tr = Math.min(255, 0.393 * r + 0.769 * g + 0.189 * b);
                         const tg = Math.min(255, 0.349 * r + 0.686 * g + 0.168 * b);
                         const tb = Math.min(255, 0.272 * r + 0.534 * g + 0.131 * b);
-                        
-                        // 채도와 대비 미세 조정
-                        data[i] = tr * 1.1;
-                        data[i+1] = tg;
-                        data[i+2] = tb * 0.9;
+                        data[i] = tr * 1.1; data[i+1] = tg; data[i+2] = tb * 0.9;
                     }
                 } else if (filterType === 'retro') {
-                    // 흑백 효과
                     for (let i = 0; i < data.length; i += 4) {
                         const gray = data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114;
-                        const contrastedGray = 1.2 * (gray - 128) + 128; // 컨트라스트 증가
+                        const contrastedGray = 1.2 * (gray - 128) + 128;
                         data[i] = data[i+1] = data[i+2] = contrastedGray;
                     }
                 }
-                
                 return imageData;
             }
-
-            // 🛠️ 해결책 2: downloadPolaroid 함수 수정
+            
+            // 🛠️ 개선 2: downloadPolaroid 함수 수정
             function downloadPolaroid() {
                 if (!currentExportPhoto) return;
                 const img = new Image();
@@ -148,7 +479,6 @@
                     const padding = 18 * scale;
                     canvas.width = frameWidth; canvas.height = frameHeight;
                     ctx.fillStyle = '#fefefe'; ctx.fillRect(0, 0, frameWidth, frameHeight);
-                    
                     const imgAspectRatio = img.naturalWidth / img.naturalHeight;
                     const photoAspectRatio = photoWidth / photoHeight;
                     let drawWidth, drawHeight, drawX, drawY;
@@ -159,25 +489,20 @@
                         drawWidth = photoWidth; drawHeight = drawWidth / imgAspectRatio;
                         drawX = padding; drawY = padding + (photoHeight - drawHeight) / 2;
                     }
-                    
                     ctx.save();
                     ctx.beginPath(); ctx.rect(padding, padding, photoWidth, photoHeight); ctx.clip();
                     ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
                     
-                    // === 불안정한 ctx.filter 제거하고 수동 필터 적용 로직으로 교체 ===
                     if (currentFilter !== 'none') {
                         const imageData = ctx.getImageData(padding, padding, photoWidth, photoHeight);
                         const filteredData = applyCanvasFilter(imageData, currentFilter);
                         ctx.putImageData(filteredData, padding, padding);
                     }
                     
-                    // 노이즈 추가
                     if (currentFilter === 'film' || currentFilter === 'retro') {
                         addNoise(ctx, padding, padding, photoWidth, photoHeight, 20);
                     }
-                    
                     ctx.restore();
-                    
                     if (currentExportPhoto.text) {
                         const textY = frameHeight - 35 * scale;
                         ctx.save(); ctx.translate(frameWidth / 2, textY); ctx.rotate(-0.017);
@@ -185,7 +510,6 @@
                         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                         ctx.fillText(currentExportPhoto.text, 0, 0); ctx.restore();
                     }
-                    
                     canvas.toBlob((blob) => {
                         const url = URL.createObjectURL(blob);
                         const link = document.createElement('a');
@@ -198,9 +522,7 @@
                 img.src = currentExportPhoto.image;
             }
 
-            // (중략) ... 다른 모든 함수는 이전과 동일 ...
-
-            // --- 이벤트 리스너 ---
+            // --- Event Listeners ---
             photoArea.addEventListener('click', () => fileInput.click());
             fileInput.addEventListener('change', handleFileUpload);
             shutterButton.addEventListener('click', handleShutterClick);
@@ -210,23 +532,22 @@
             deleteIconBtn.addEventListener('click', handleDeleteClick);
             exportModal.addEventListener('click', (e) => { if (e.target === exportModal) closeExportModal(); });
             
-            // 기존 마우스 이벤트
+            // Mouse Events
             galleryContainer.addEventListener('mousedown', startDrag);
             galleryContainer.addEventListener('mouseup', endDrag);
             galleryContainer.addEventListener('mouseleave', endDrag);
             galleryContainer.addEventListener('mousemove', onDrag);
 
-            // 🛠️ 해결책 3: 모바일 터치 이벤트 추가
+            // 🛠️ 개선 3: 모바일 터치 이벤트 추가
             galleryContainer.addEventListener('touchstart', (e) => {
-                // 한 번의 드래그를 시작할 때, 클릭 이벤트와의 중복을 막기 위해 플래그를 사용합니다.
                 if (isDragging) return;
                 const touch = e.touches[0];
                 startDrag({ pageX: touch.pageX, clientX: touch.clientX, clientY: touch.clientY, target: e.target });
-            }, { passive: false }); // 스크롤 방지를 위해 passive: false 설정
+            }, { passive: false });
 
             galleryContainer.addEventListener('touchmove', (e) => {
                 if (!isDragging) return;
-                e.preventDefault(); // 드래그 중 페이지 스크롤 방지
+                e.preventDefault();
                 const touch = e.touches[0];
                 onDrag({ pageX: touch.pageX, preventDefault: () => {} });
             }, { passive: false });
@@ -234,13 +555,12 @@
             galleryContainer.addEventListener('touchend', (e) => {
                 if (!isDragging) return;
                 const touch = e.changedTouches[0];
-                // touchend 이벤트에는 target 정보가 없으므로, elementFromPoint를 사용합니다.
                 const target = document.elementFromPoint(touch.clientX, touch.clientY);
                 endDrag({ clientX: touch.clientX, clientY: touch.clientY, target: target });
             });
 
+            // App Initialization
             async function init() {
-                // ... (init 함수는 변경 없음)
                 try {
                     await initDB();
                     savedPhotos = await getAllPhotosFromDB();
